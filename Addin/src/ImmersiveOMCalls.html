@@ -1,0 +1,272 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <style type="text/css">
+        input {
+            font-size: 10px;
+        }
+    </style>
+    <script type="text/javascript" src="Agavito-WinRT.js"></script>
+    <script type="text/javascript">
+
+        var agavitoExecuteAction = function (id) {
+            try {
+                // methodId:1 is Execute.
+                // Test disp-id for Agavito.
+                var parameters = {
+                    methodId: 1,
+                    params: {
+                        id: parseInt(id),
+                        apiArgs: ['Location', 1, true, false, 1.2, [1, 2, 3], ['test string', 'value']]
+                    },
+                    callbackFunction: 'agaveHostCallback',
+                    callbackId: "callbackIdExecute"
+                };
+                window.parent.postMessage(JSON.stringify(parameters), '*');
+            }
+            catch (e) {
+                log.value = 'ERROR:' + (e ? e.toString() : '');
+            }
+        }
+
+        var agavitoRegisterEventAction = function () {
+            try {
+                // methodId:2 is RegisterEvent.
+                // Test disp-id for Agavito.
+                var parameters = {
+                    methodId: 2,
+                    eventCallbackFunction: "agaveHostEventCallback",
+                    callbackFunction: "agaveHostCallback",
+                    callbackId: "callbackIdRegisterEvent",
+                    params: {
+                        id: 1, // dispidSettingsChangedEvent
+                        targetId: "" // binding Id
+                    }
+                };
+                window.parent.postMessage(JSON.stringify(parameters), '*');
+            }
+            catch (e) {
+                log.value = 'ERROR:' + (e ? e.toString() : '');
+            }
+        }
+
+        var agavitoUnregisterEventAction = function () {
+            try {
+                // methodId:3 is UnregisterEvent.
+                // Test disp-id for Agavito.
+                var parameters = {
+                    methodId: 3,
+                    callbackFunction: "agaveHostCallback",
+                    callbackId: "callbackIdUnregisterEvent",
+                    params: {
+                        id: 1, // dispidSettingsChangedEvent
+                        targetId: "" // binding Id
+                    }
+                };
+                window.parent.postMessage(JSON.stringify(parameters), '*');
+            }
+            catch (e) {
+                log.value = 'ERROR:' + (e ? e.toString() : '');
+            }
+        }
+
+        var g_GetContextActionId;
+        var agavitoContextInvokeAction = function (actionId) {
+            if (isNaN(actionId)) {
+                log.value = 'ERROR:' + 'OSFWebView.AppContextProperties is not defined. Check Agavito-WinRT.js';
+                return;
+            }
+
+            g_GetContextActionId = actionId;
+            try {
+                var parameters = {
+                    methodId: 5,
+                    params: {},
+                    callbackFunction: 'agaveHostCallback',
+                    callbackId: "callbackIdGetAppContext"
+                };
+                window.parent.postMessage(JSON.stringify(parameters), '*');
+            }
+            catch (e) {
+                log.value = 'ERROR:' + (e ? e.toString() : '');
+            }
+        }
+
+        var hostToJsCallback = function () {
+            ImmersiveGenericCallback('hostToJsCallback', arguments);
+        }
+
+        var hostToJsCallbackComplete = function () {
+            ImmersiveGenericCallback('hostToJsCallbackComplete', arguments);
+        }
+
+        var ImmersiveGenericCallback = function (callee, args) {
+            writeToLog(callee + ' start.');
+            writeToLog("args.length: " + args.length.toString());
+
+            for (i = 0; i < args.length; i++) {
+                writeToLog("args[" + i.toString() + "]: " + args[i].toString());
+            }
+
+            writeToLog(callee + ' end.');
+        }
+
+        var onGetAppContextComplete = function (contextString) {
+            try {
+                var context = JSON.parse(contextString);
+            }
+            catch(e) {
+                log.value = 'ERROR:' + (e ? e.toString() : '') + ', context string:' + contextString;
+                return;
+            }
+
+            var temp = context[g_GetContextActionId];
+            if (temp === undefined) {
+                log.value = 'ERROR:' + 'Failed to get app context property[' + g_GetContextActionId + ']';
+                return;
+            }
+
+            if (temp === "") {
+                temp = '""';
+            }
+
+            log.value = temp;
+        }
+
+        var logLineCount = 1;
+        function writeToLog(value) {
+            if (value != null && value.toString() != '') {
+                log.value = logLineCount + ": " + value + "\r\n" + log.value;
+                logLineCount = logLineCount + 1;
+            }
+        }
+
+        // Receive message from WinRTHost.htm
+        function onReceiveMessage(event) {
+            try {
+                var cbData = JSON.parse(event.data);
+            }
+            catch (e) {
+                log.value = "ERROR: failed to parse JSON object:" + e.toString();
+                return;
+            }
+
+            if (cbData.callbackType == 0) {
+                // MethodCallback
+                switch(cbData.callbackId) {
+                    case "callbackIdExecute":
+                        hostToJsCallback(cbData.params);
+                        break;
+                    case "callbackIdRegisterEvent":
+                        // Not yet implemented
+                        break;
+                    case "callbackIdUnregisterEvent":
+                        // Not yet implemented
+                        break;
+                    case "callbackIdGetAppContext":
+                        onGetAppContextComplete(cbData.params);
+                        break;
+                    default:
+                        log.value = "ERROR: unknown callback Id";
+                }
+            }
+            else if (cbData.callbackType == 1) {
+                // EventCallback
+                // Not yet implemented
+            }
+            else {
+                log.value = "ERROR: unknown callback type";
+            }
+        }
+
+        function initialize() {
+            window.addEventListener("message", onReceiveMessage);
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        function checkAppContextPropertiesDefinition() {
+            if (typeof(OSFWebView) == "undefined" || typeof(OSFWebView.AppContextProperties) == "undefined") {
+                log.value = "ERROR: OSFWebView.AppContextProperties is not defined. Check Agavito-WinRT.js";
+                return false;
+            }
+
+            return true;
+        }
+    </script>
+    <title>OM Immersive Tests</title>
+</head>
+<body onload = "initialize()">
+    OM IMMERSIVE TESTS
+    <br />
+    <input id="agavitoExecuteActionButton" type="button" onclick="javascript: agavitoExecuteAction(1);" value="agavitoExecuteAction" />
+    <input id="agavitoRegisterEventActionButton" type="button" onclick="javascript: agavitoRegisterEventAction();" value="agavitoRegisterEventAction" />
+    <input id="agavitoUnregisterEventActionButton" type="button" onclick="javascript: agavitoUnregisterEventAction();" value="agavitoUnregisterEventAction" />
+    <br />
+    Test marshalling types
+    <br />
+    <input id="agavitoExecuteStringArray" type="button" onclick="javascript: agavitoExecuteAction(1);" value="agavitoExecuteStringArray" />
+    <input id="agavitoExecuteBooleanArray" type="button" onclick="javascript: agavitoExecuteAction(2);" value="agavitoExecuteBooleanArray" />
+    <input id="agavitoExecuteByteArray" type="button" onclick="javascript: agavitoExecuteAction(3);" value="agavitoExecuteByteArray" />
+    <input id="agavitoExecuteInt32Array" type="button" onclick="javascript: agavitoExecuteAction(4);" value="agavitoExecuteInt32Array" />
+    <input id="agavitoExecuteUInt32Array" type="button" onclick="javascript: agavitoExecuteAction(5);" value="agavitoExecuteUInt32Array" />
+    <input id="agavitoExecuteInt64Array" type="button" onclick="javascript: agavitoExecuteAction(6);" value="agavitoExecuteInt64Array" />
+    <input id="agavitoExecuteUInt64Array" type="button" onclick="javascript: agavitoExecuteAction(7);" value="agavitoExecuteUInt64Array" />
+    <input id="agavitoExecuteDoubleArray" type="button" onclick="javascript: agavitoExecuteAction(8);" value="agavitoExecuteDoubleArray" />
+    <input id="agavitoExecuteString" type="button" onclick="javascript: agavitoExecuteAction(9);" value="agavitoExecuteString" />
+    <input id="agavitoExecuteBoolean" type="button" onclick="javascript: agavitoExecuteAction(10);" value="agavitoExecuteBoolean" />
+    <input id="agavitoExecuteByte" type="button" onclick="javascript: agavitoExecuteAction(11);" value="agavitoExecuteByte" />
+    <input id="agavitoExecuteInt32" type="button" onclick="javascript: agavitoExecuteAction(12);" value="agavitoExecuteInt32" />
+    <input id="agavitoExecuteUInt32" type="button" onclick="javascript: agavitoExecuteAction(13);" value="agavitoExecuteUInt32" />
+    <input id="agavitoExecuteInt64" type="button" onclick="javascript: agavitoExecuteAction(14);" value="agavitoExecuteInt64" />
+    <input id="agavitoExecuteUInt64" type="button" onclick="javascript: agavitoExecuteAction(15);" value="agavitoExecuteUInt64" />
+    <input id="agavitoExecuteDouble" type="button" onclick="javascript: agavitoExecuteAction(16);" value="agavitoExecuteDouble" />
+    <br />
+    Test context retrieval
+    <br />
+    <input id="agavitoGetSolutionRef" type="button"
+        onclick="javascript:if (checkAppContextPropertiesDefinition()) agavitoContextInvokeAction(OSFWebView.AppContextProperties.SolutionReferenceId);"
+        value="agavitoGetSolutionRef" />
+    <input id="agavitoGetAppType" type="button"
+        onclick="javascript:if (checkAppContextPropertiesDefinition()) agavitoContextInvokeAction(OSFWebView.AppContextProperties.AppType);"
+        value="agavitoGetAppType" />
+    <input id="agavitoGetAppVersionMajor" type="button"
+        onclick="javascript:if (checkAppContextPropertiesDefinition()) agavitoContextInvokeAction(OSFWebView.AppContextProperties.MajorVersion);"
+        value="agavitoGetAppVersionMajor" />
+    <input id="agavitoGetAppVersionMinor" type="button"
+        onclick="javascript:if (checkAppContextPropertiesDefinition()) agavitoContextInvokeAction(OSFWebView.AppContextProperties.MinorVersion);"
+        value="agavitoGetAppVersionMinor" />
+    <input id="agavitoGetAppVersionRevision" type="button"
+        onclick="javascript:if (checkAppContextPropertiesDefinition()) agavitoContextInvokeAction(OSFWebView.AppContextProperties.RevisionVersion);"
+        value="agavitoGetAppVersionRevision" />
+    <input id="agavitoGetAppVersionSequence" type="button"
+        onclick="javascript:if (checkAppContextPropertiesDefinition()) agavitoContextInvokeAction(OSFWebView.AppContextProperties.APIVersionSequence);"
+        value="agavitoGetAppVersionSequence" />
+    <input id="agavitoGetAppCapabilities" type="button"
+        onclick="javascript:if (checkAppContextPropertiesDefinition()) agavitoContextInvokeAction(OSFWebView.AppContextProperties.AppCapabilities);"
+        value="agavitoGetAppCapabilities" />
+    <input id="agavitoGetAppUILocale" type="button"
+        onclick="javascript:if (checkAppContextPropertiesDefinition()) agavitoContextInvokeAction(OSFWebView.AppContextProperties.APPUILocale);"
+        value="agavitoGetAppUILocale" />
+    <input id="agavitoGetAppDataLocale" type="button"
+        onclick="javascript:if (checkAppContextPropertiesDefinition()) agavitoContextInvokeAction(OSFWebView.AppContextProperties.AppDataLocale);"
+        value="agavitoGetAppDataLocale" />
+    <input id="agavitoGetBindingsCount" type="button"
+        onclick="javascript:if (checkAppContextPropertiesDefinition()) agavitoContextInvokeAction(OSFWebView.AppContextProperties.BindingCount);"
+        value="agavitoGetBindingsCount" />
+    <input id="agavitoGetDocUrl" type="button"
+        onclick="javascript:if (checkAppContextPropertiesDefinition()) agavitoContextInvokeAction(OSFWebView.AppContextProperties.DocumentUrl);"
+        value="agavitoGetDocUrl" />
+    <input id="agavitoGetActivationMode" type="button"
+        onclick="javascript:if (checkAppContextPropertiesDefinition()) agavitoContextInvokeAction(OSFWebView.AppContextProperties.ActivationMode);"
+        value="agavitoGetActivationMode" />
+    <input id="agavitoGetControlIntegrationLevel" type="button"
+        onclick="javascript:if (checkAppContextPropertiesDefinition()) agavitoContextInvokeAction(OSFWebView.AppContextProperties.ControlIntegrationLevel);"
+        value="agavitoGetControlIntegrationLevel" />
+    <input id="agavitoGetSolutionToken" type="button"
+        onclick="javascript:if (checkAppContextPropertiesDefinition()) agavitoContextInvokeAction(OSFWebView.AppContextProperties.SolutionToken);"
+        value="agavitoGetSolutionToken" />
+    <br />
+    <textarea id="log" cols="60" rows="10"></textarea>
+</body>
+</html>
